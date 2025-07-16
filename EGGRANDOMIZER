@@ -1,21 +1,20 @@
--- Visual Egg Predictor with GUI Panel
--- Made by GROW A GARDEN SCRIPTERS
+-- Egg Visual Predictor by GROW A GARDEN SCRIPTERS (Client-Side Visual Only)
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
--- Config
+-- Configuration
 local DETECTION_RANGE = 30
 local PREDICTION_INTERVAL = 30
-local ESP_ENABLED = true
-local AUTO_RANDOMIZER = true
 
+-- Supported eggs
 local EGG_LIST = {
     "Bug Egg", "Night Egg", "Mythical Egg", "Paradise Egg",
     "Oasis Egg", "Primal Egg", "Dinosaur Egg"
 }
 
+-- Pet pools
 local PET_POOL = {
     ["Bug Egg"] = {"Snail", "Giant Ant", "Praying Mantis", "Dragonfly"},
     ["Night Egg"] = {"Echo Frog", "Raccoon", "Night Owl", "Hedgehog", "Caterpillar"},
@@ -28,12 +27,14 @@ local PET_POOL = {
 
 local activeEggs = {}
 
+-- Predict pet from pool
 local function getRandomPet(eggName)
     local pool = PET_POOL[eggName]
     return pool and pool[math.random(1, #pool)] or "Unknown"
 end
 
-local function createUI(egg, prediction, timer)
+-- Attach UI to egg
+local function attachUI(egg, predicted, timer)
     local part = egg:FindFirstChildWhichIsA("BasePart")
     if not part then return end
 
@@ -50,6 +51,7 @@ local function createUI(egg, prediction, timer)
         local label = Instance.new("TextLabel")
         label.Name = "Label"
         label.Size = UDim2.new(1, 0, 0.7, 0)
+        label.Position = UDim2.new(0, 0, 0, 0)
         label.BackgroundTransparency = 1
         label.TextColor3 = Color3.new(1, 1, 0)
         label.TextScaled = true
@@ -58,6 +60,7 @@ local function createUI(egg, prediction, timer)
         label.Parent = gui
 
         local credit = Instance.new("TextLabel")
+        credit.Name = "Credit"
         credit.Size = UDim2.new(1, 0, 0.3, 0)
         credit.Position = UDim2.new(0, 0, 0.7, 0)
         credit.BackgroundTransparency = 1
@@ -71,63 +74,11 @@ local function createUI(egg, prediction, timer)
 
     local label = gui:FindFirstChild("Label")
     if label then
-        label.Text = string.format("%s \u2192\n%s\n%d s", egg.Name, prediction, timer)
-    end
-
-    gui.Enabled = ESP_ENABLED
-end
-
-local function randomizeOnce()
-    for egg, data in pairs(activeEggs) do
-        data.prediction = getRandomPet(egg.Name)
-        data.countdown = PREDICTION_INTERVAL
+        label.Text = string.format("%s →\n%s\n%d s", egg.Name, predicted, timer)
     end
 end
 
--- GUI Panel
-local function createControlPanel()
-    local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-    gui.Name = "EggControlPanel"
-
-    local frame = Instance.new("Frame", gui)
-    frame.Size = UDim2.new(0, 200, 0, 180)
-    frame.Position = UDim2.new(0.02, 0, 0.25, 0)
-    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-    frame.BorderSizePixel = 0
-    frame.Active = true
-    frame.Draggable = true
-
-    local function makeButton(text, yPos, callback)
-        local btn = Instance.new("TextButton", frame)
-        btn.Size = UDim2.new(1, -20, 0, 40)
-        btn.Position = UDim2.new(0, 10, 0, yPos)
-        btn.Text = text
-        btn.Font = Enum.Font.GothamBold
-        btn.TextScaled = true
-        btn.TextColor3 = Color3.new(1, 1, 1)
-        btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-        btn.MouseButton1Click:Connect(callback)
-        return btn
-    end
-
-    makeButton("Randomize Once", 10, function()
-        randomizeOnce()
-    end)
-
-    local autoBtn = makeButton("Auto Randomizer: ON", 60, function()
-        AUTO_RANDOMIZER = not AUTO_RANDOMIZER
-        autoBtn.Text = "Auto Randomizer: " .. (AUTO_RANDOMIZER and "ON" or "OFF")
-    end)
-
-    local espBtn = makeButton("ESP: ON", 110, function()
-        ESP_ENABLED = not ESP_ENABLED
-        espBtn.Text = "ESP: " .. (ESP_ENABLED and "ON" or "OFF")
-    end)
-end
-
-createControlPanel()
-
--- Prediction Loop
+-- Main loop
 task.spawn(function()
     while true do
         local char = LocalPlayer.Character
@@ -139,7 +90,7 @@ task.spawn(function()
                 local part = obj:FindFirstChildWhichIsA("BasePart")
                 if part and (part.Position - root.Position).Magnitude <= DETECTION_RANGE then
                     activeEggs[obj] = {
-                        prediction = getRandomPet(obj.Name),
+                        predicted = getRandomPet(obj.Name),
                         countdown = PREDICTION_INTERVAL
                     }
                 end
@@ -148,14 +99,12 @@ task.spawn(function()
 
         for egg, data in pairs(activeEggs) do
             if egg and egg.Parent then
-                if AUTO_RANDOMIZER then
-                    data.countdown -= 1
-                    if data.countdown <= 0 then
-                        data.prediction = getRandomPet(egg.Name)
-                        data.countdown = PREDICTION_INTERVAL
-                    end
+                data.countdown -= 1
+                if data.countdown <= 0 then
+                    data.predicted = getRandomPet(egg.Name)
+                    data.countdown = PREDICTION_INTERVAL
                 end
-                createUI(egg, data.prediction, data.countdown)
+                attachUI(egg, data.predicted, data.countdown)
             else
                 activeEggs[egg] = nil
             end
