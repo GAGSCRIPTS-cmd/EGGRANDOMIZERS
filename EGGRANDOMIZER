@@ -1,0 +1,115 @@
+-- Egg Visual Predictor by GROW A GARDEN SCRIPTERS (Client-Side Visual Only)
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local DETECTION_RANGE = 30
+local PREDICTION_INTERVAL = 30
+
+-- Supported eggs
+local EGG_LIST = {
+    "Bug Egg", "Night Egg", "Mythical Egg", "Paradise Egg",
+    "Oasis Egg", "Primal Egg", "Dinosaur Egg"
+}
+
+-- Pet pools
+local PET_POOL = {
+    ["Bug Egg"] = {"Snail", "Giant Ant", "Praying Mantis", "Dragonfly"},
+    ["Night Egg"] = {"Echo Frog", "Raccoon", "Night Owl", "Hedgehog", "Caterpillar"},
+    ["Mythical Egg"] = {"Squirrel", "Red Giant Ant", "Grey Mouse", "Brown Mouse"},
+    ["Paradise Egg"] = {"Ostrich", "Peacock", "Capybara", "Mimic Octopus"},
+    ["Oasis Egg"] = {"Meerkat", "Sandsnake", "Oxolotl"},
+    ["Primal Egg"] = {"Parasaurolophus", "Iguanodon", "Dilophosaurus", "Ankylosaurus", "Spinosaurus", "Triceratops"},
+    ["Dinosaur Egg"] = {"T-Rex", "Raptor", "Triceratops", "Pterodactyl", "Brontosaurus"}
+}
+
+local activeEggs = {}
+
+-- Predict pet from pool
+local function getRandomPet(eggName)
+    local pool = PET_POOL[eggName]
+    return pool and pool[math.random(1, #pool)] or "Unknown"
+end
+
+-- Attach UI to egg
+local function attachUI(egg, predicted, timer)
+    local part = egg:FindFirstChildWhichIsA("BasePart")
+    if not part then return end
+
+    local gui = egg:FindFirstChild("PredictionUI")
+    if not gui then
+        gui = Instance.new("BillboardGui")
+        gui.Name = "PredictionUI"
+        gui.Adornee = part
+        gui.Size = UDim2.new(0, 140, 0, 55)
+        gui.StudsOffset = Vector3.new(0, 3, 0)
+        gui.AlwaysOnTop = true
+        gui.Parent = egg
+
+        local label = Instance.new("TextLabel")
+        label.Name = "Label"
+        label.Size = UDim2.new(1, 0, 0.7, 0)
+        label.Position = UDim2.new(0, 0, 0, 0)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.new(1, 1, 0)
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.Text = ""
+        label.Parent = gui
+
+        local credit = Instance.new("TextLabel")
+        credit.Name = "Credit"
+        credit.Size = UDim2.new(1, 0, 0.3, 0)
+        credit.Position = UDim2.new(0, 0, 0.7, 0)
+        credit.BackgroundTransparency = 1
+        credit.TextColor3 = Color3.new(1, 1, 1)
+        credit.TextTransparency = 0.4
+        credit.TextScaled = true
+        credit.Font = Enum.Font.Gotham
+        credit.Text = "Made by GROW A GARDEN SCRIPTERS"
+        credit.Parent = gui
+    end
+
+    local label = gui:FindFirstChild("Label")
+    if label then
+        label.Text = string.format("%s →\n%s\n%d s", egg.Name, predicted, timer)
+    end
+end
+
+-- Main loop
+task.spawn(function()
+    while true do
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if not root then task.wait(1) continue end
+
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if table.find(EGG_LIST, obj.Name) and obj:IsA("Model") and not activeEggs[obj] then
+                local part = obj:FindFirstChildWhichIsA("BasePart")
+                if part and (part.Position - root.Position).Magnitude <= DETECTION_RANGE then
+                    activeEggs[obj] = {
+                        predicted = getRandomPet(obj.Name),
+                        countdown = PREDICTION_INTERVAL
+                    }
+                end
+            end
+        end
+
+        for egg, data in pairs(activeEggs) do
+            if egg and egg.Parent then
+                data.countdown -= 1
+                if data.countdown <= 0 then
+                    data.predicted = getRandomPet(egg.Name)
+                    data.countdown = PREDICTION_INTERVAL
+                end
+                attachUI(egg, data.predicted, data.countdown)
+            else
+                activeEggs[egg] = nil
+            end
+        end
+
+        task.wait(1)
+    end
+end)
